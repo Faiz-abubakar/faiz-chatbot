@@ -1,24 +1,62 @@
 import streamlit as st
 from groq import Groq
 
-api_key = st.secrets["GROQ_API_KEY"]
-client = Groq(api_key=api_key)
+# 1. Page Config & Title
+st.set_page_config(page_title="Faiz ChatBot", page_icon="🤖")
+st.title("🤖 Faiz ChatBot")
+st.markdown("---")
+st.caption("Academic Research (APA 7th) | MKU Portal Analysis | Student Support")
 
-# The "Brain" now includes MKU Portal Logic
+# 2. Access API Key from Streamlit Secrets
+try:
+    api_key = st.secrets["GROQ_API_KEY"]
+    client = Groq(api_key=api_key)
+except Exception:
+    st.error("API Key not found. Please add 'GROQ_API_KEY' to your Streamlit Secrets.")
+    st.stop()
+
+# 3. The Comprehensive "Brain" Instructions
 ACADEMIC_TRAINING = """
-You are the MKU Academic Research & Portal Assistant. 
-Your goals:
-1. APA RESEARCH: Answer all academic questions using APA 7th Edition citations.
-2. PORTAL ANALYSIS: If a student pastes their transcript or course outline, analyze it.
-   - Match 'Done' units against the 'Course Outline'.
-   - Identify 'Remaining' units.
-   - Check BUCU unit mappings (e.g., BUCU001 is now BUCU007).
-   - Calculate completion % and suggest a graduation timeline.
-3. NO PERSONAL INFO: Do not talk about Faiz unless it's a general web search.
+You are the Faiz ChatBot, a high-level AI assistant for students.
+GOALS:
+1. PORTAL ANALYSIS: If a student pastes transcript data, analyze completed vs. missing units based on MKU standards. Use a table format for the summary.
+2. APA RESEARCH: Answer all academic questions using APA 7th Edition citations and references.
+3. MKU BUCU MAPPING: Automatically map old BUCU codes to new ones (e.g., BUCU001 -> BUCU007).
+4. IDENTITY: If asked about 'Faiz', research him as a public/professional figure; do not use a personal tone.
 """
 
-st.set_page_config(page_title="MKU Student Portal & Research AI", page_icon="🎓")
-st.title("🎓 MKU Student Portal & Research AI")
-st.markdown("Paste your **Transcript** or **Course Outline** below for a graduation audit, or ask a research question.")
+# 4. Initialize Chat History
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-# ... (rest of the chat logic we used before) ...
+# 5. Display Chat History
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# 6. Chat Input Logic (This is what makes it an AI)
+if prompt := st.chat_input("Paste your transcript or ask a research question..."):
+    # Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    with st.chat_message("user"):
+        st.markdown(prompt)
+
+    # Generate Response from Groq
+    with st.spinner("Thinking..."):
+        try:
+            completion = client.chat.completions.create(
+                model="llama-3.1-70b-versatile",
+                messages=[
+                    {"role": "system", "content": ACADEMIC_TRAINING},
+                    *st.session_state.messages
+                ],
+                temperature=0.3
+            )
+            response = completion.choices.message.content
+            
+            # Display & Save Assistant Response
+            with st.chat_message("assistant"):
+                st.markdown(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
