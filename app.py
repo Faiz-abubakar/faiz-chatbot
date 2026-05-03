@@ -2,7 +2,7 @@ import streamlit as st
 from groq import Groq
 
 # 1. Page Config
-st.set_page_config(page_title="Faiz ChatBot", page_icon=None, layout="wide")
+st.set_page_config(page_title="Faiz ChatBot", page_icon="🎓", layout="wide")
 
 # 2. LOAD FONT AWESOME (Pro Icons)
 st.markdown('<link rel="stylesheet" href="https://cloudflare.com">', unsafe_allow_html=True)
@@ -13,9 +13,10 @@ if "messages" not in st.session_state:
 if "history_titles" not in st.session_state:
     st.session_state.history_titles = []
 
-# 4. SIDEBAR WITH HISTORY LOG
+# 4. SIDEBAR WITH LOGIC FIX
 with st.sidebar:
-    st.markdown('<h2><i class="fa-solid fa-microchip"></i> Faiz ChatBot</h2>', unsafe_allow_html=True)
+    # Use standard text for the title to avoid rendering errors
+    st.title("Faiz ChatBot")
     
     if st.button("Clear Conversation"): 
         st.session_state.messages = []
@@ -23,26 +24,25 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    st.markdown('#### <i class="fa-solid fa-clock-rotate-left"></i> Recent Chats')
+    # Using markdown for history title
+    st.markdown("### Recent Chats")
     
-    # This loop displays your chat history in the sidebar
     if not st.session_state.history_titles:
         st.caption("No recent chats yet.")
     else:
         for title in reversed(st.session_state.history_titles):
-            st.markdown(f'<p style="font-size: 0.85rem; color: #555;"><i class="fa-solid fa-message"></i> {title[:30]}...</p>', unsafe_allow_html=True)
+            # Clean display for history
+            st.write(f"• {title[:25]}...")
 
     st.markdown("---")
-    st.markdown("""
-    <div style="background-color: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #0d6efd; color: #212529; font-size: 0.9rem;">
-        <p><b><i class="fa-solid fa-circle-info"></i> Guide</b></p>
-        <p><i class="fa-solid fa-magnifying-glass"></i> Research Topics</p>
-        <p><i class="fa-solid fa-quote-right"></i> APA Citations</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Clean Guide box
+    with st.expander("User Guide", expanded=True):
+        st.write("• Academic Research")
+        st.write("• Portal Transcript Audit")
+        st.write("• APA 7th Citations")
 
 # 5. MAIN HEADER
-st.markdown('<h1><i class="fa-solid fa-graduation-cap"></i> Faiz ChatBot</h1>', unsafe_allow_html=True)
+st.title("🎓 Faiz ChatBot")
 st.markdown("##### *Academic Research & Portal Intelligence Partner*")
 st.markdown("---")
 
@@ -62,15 +62,15 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 9. Chat Input
+# 9. Chat Input with INSTANT HISTORY UPDATE
 if prompt := st.chat_input("Type your research question..."):
-    # Add to main chat
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    
-    # Add to sidebar history (only if it's a new unique topic)
+    # 1. Add to sidebar history immediately
     if prompt not in st.session_state.history_titles:
         st.session_state.history_titles.append(prompt)
-        
+    
+    # 2. Add user message to history
+    st.session_state.messages.append({"role": "user", "content": prompt})
+    
     with st.chat_message("user"):
         st.markdown(prompt)
 
@@ -85,6 +85,11 @@ if prompt := st.chat_input("Type your research question..."):
             
             with st.chat_message("assistant"):
                 st.markdown(response)
+            
             st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            # 3. FORCE REFRESH to show the new history title in the sidebar
+            st.rerun()
+            
         except Exception as e:
             st.error(f"Error: {e}")
