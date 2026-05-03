@@ -1,21 +1,30 @@
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
 from groq import Groq
 
-# 1. Page Config
 st.set_page_config(page_title="Faiz ChatBot", page_icon="🎓", layout="wide")
 
-# 2. LOAD FONT AWESOME (Pro Icons)
 st.markdown('<link rel="stylesheet" href="https://cloudflare.com">', unsafe_allow_html=True)
 
-# 3. INITIALIZE SESSION STATES
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "history_titles" not in st.session_state:
     st.session_state.history_titles = []
 
-# 4. SIDEBAR
+def create_progress_chart(done, remaining):
+    """Creates a professional pie chart for academic audits."""
+    data = {'Status': ['Completed', 'Remaining'], 'Units': [done, remaining]}
+    df = pd.DataFrame(data)
+    fig, ax = plt.subplots(figsize=(6, 4))
+    colors = ['#0d6efd', '#e9ecef'] # Professional Blue and Grey
+    ax.pie(df['Units'], labels=df['Status'], autopct='%1.1f%%', colors=colors, startangle=90, wedgeprops={'edgecolor': 'white'})
+    ax.axis('equal')
+    plt.title("Graduation Progress Audit", fontsize=12, pad=20)
+    return fig
+
 with st.sidebar:
-    st.title("Faiz ChatBot")
+    st.markdown('<h2><i class="fa-solid fa-microchip"></i> Faiz ChatBot</h2>', unsafe_allow_html=True)
     
     if st.button("Clear Conversation"): 
         st.session_state.messages = []
@@ -23,7 +32,7 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    st.markdown("### Recent Chats")
+    st.markdown("### <i class='fa-solid fa-clock-rotate-left'></i> Recent Chats", unsafe_allow_html=True)
     
     if not st.session_state.history_titles:
         st.caption("No recent chats yet.")
@@ -33,53 +42,66 @@ with st.sidebar:
 
     st.markdown("---")
     with st.expander("User Guide", expanded=True):
-        st.write("• Academic Research")
-        st.write("• Portal Transcript Audit")
-        st.write("• APA 7th Citations")
+        st.write("• **Research:** Ask any academic topic.")
+        st.write("• **Audit:** Paste transcript for a chart.")
+        st.write("• **APA:** Get formatted citations.")
 
-# 5. MAIN HEADER
-st.title("🎓 Faiz ChatBot")
+st.markdown('<h1><i class="fa-solid fa-graduation-cap"></i> Faiz ChatBot</h1>', unsafe_allow_html=True)
 st.markdown("##### *Academic Research & Portal Intelligence Partner*")
 st.markdown("---")
 
-# 6. Access API Key
 try:
     api_key = st.secrets["GROQ_API_KEY"]
     client = Groq(api_key=api_key)
 except Exception:
-    st.error("API Key not found in Secrets.")
+    st.error("API Key not found. Please check your Streamlit Secrets.")
     st.stop()
 
-# 7. Brain Instructions
-ACADEMIC_TRAINING = "You are the Faiz ChatBot. End responses with 'Would you like to...' suggestions. Use APA if asked."
+ACADEMIC_TRAINING = """
+You are the Faiz ChatBot. 
+- If a user pastes transcript data, analyze it and provide a summary table.
+- At the end of every response, provide 2-3 'Next Step' suggestions.
+- If asked for research, use APA 7th Edition style.
+- Keep answers professional and educational.
+"""
 
-# 8. Display Chat
+# CHAT HISTORY
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 9. Chat Input
-if prompt := st.chat_input("Type your research question..."):
+if prompt := st.chat_input("Ask a research question or paste your transcript..."):
+    # Update History
     if prompt not in st.session_state.history_titles:
         st.session_state.history_titles.append(prompt)
     
     st.session_state.messages.append({"role": "user", "content": prompt})
-    
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # --- FIX: Correct Indentation starts here ---
-    with st.spinner("Processing..."):
+    with st.spinner("Analyzing data..."):
         try:
+            # Call Groq API
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile", 
                 messages=[{"role": "system", "content": ACADEMIC_TRAINING}] + st.session_state.messages,
                 temperature=0.3
             )
             
-            # Use choice 0 to get the content
             response = completion.choices[0].message.content
             
+            with st.chat_message("assistant"):
+                st.markdown(response)
+            
+                if any(word in prompt.lower() for word in ["transcript", "units", "audit", "grades"]):
+                    st.markdown("---")
+                    st.markdown("### Visual Progress Report")
+
+                    fig = create_progress_chart(30, 12)
+                    st.pyplot(fig)
+                
+                st.markdown('<p style="color: grey;"><i class="fa-solid fa-bolt"></i> <i>Type "Continue" if needed.</i></p>', unsafe_allow_html=True)
+
             st.session_state.messages.append({"role": "assistant", "content": response})
             st.rerun()
             
