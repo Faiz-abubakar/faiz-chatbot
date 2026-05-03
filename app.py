@@ -16,14 +16,25 @@ except Exception:
     st.error("API Key not found. Please check Streamlit Secrets.")
     st.stop()
 
-ACADEMIC_TRAINING = """
-You are the Faiz ChatBot, a real-time researcher and portal analyst.
+CLAUDE_PROTOCOL = """
+You are Faiz ChatBot, an interactive assistant built on the Claude Protocol. 
+TONE AND STYLE:
+- Be concise, direct, and to the point. 
+- Minimize output tokens. If you can answer in 1-3 sentences, do so.
+- NEVER use unnecessary preamble (e.g., "The answer is...", "Based on the info...") or postamble.
+- Match the level of detail to the complexity of the query.
+- Use Github-flavored markdown for formatting. 
+- Only use emojis if explicitly requested.
 
-CRITICAL RULES:
-1. NO APA CITATIONS: Never provide a 'References' section or academic citations. Provide direct facts only.
-2. KENYAN CONTEXT: Prioritize Kenyan institutions and local information.
-3. PORTAL ANALYSIS: Generate summary tables for transcript data.
-4. DOCUMENT ANALYSIS: Analyze text from uploaded files provided by the user.
+PROFESSIONAL OBJECTIVITY:
+- Prioritize technical accuracy over validating user beliefs. 
+- Focus on facts and problem-solving. No unnecessary superlatives or praise.
+- Disagree when necessary and provide respectful correction.
+
+ACADEMIC/PORTAL LOGIC:
+- Analyze MKU transcripts via tables. 
+- Prioritize Kenyan context. 
+- NO APA references or citations.
 """
 
 with st.sidebar:
@@ -50,10 +61,10 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask a question or discuss your uploaded file..."):
+if prompt := st.chat_input("Ask a question..."):
     final_prompt = prompt
     if uploaded_file:
-        final_prompt = f"File Context: {uploaded_file.name}. Question: {prompt}"
+        final_prompt = f"File: {uploaded_file.name}. Task: {prompt}"
 
     st.session_state.messages.append({"role": "user", "content": final_prompt})
     with st.chat_message("user"):
@@ -63,8 +74,8 @@ if prompt := st.chat_input("Ask a question or discuss your uploaded file..."):
         try:
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": ACADEMIC_TRAINING}] + st.session_state.messages,
-                temperature=0.3
+                messages=[{"role": "system", "content": CLAUDE_PROTOCOL}] + st.session_state.messages,
+                temperature=0.2
             )
             response = completion.choices[0].message.content
             
