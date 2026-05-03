@@ -5,36 +5,44 @@ import pyperclip
 
 st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
+# Custom CSS with dark theme
 st.markdown("""
 <style>
-    @media (max-width: 768px) {
-        .stChatMessage {
-            font-size: 14px;
-        }
-    }
-    
-    .message-actions {
-        display: flex;
-        gap: 16px;
-        margin-top: 12px;
-        padding-top: 8px;
-        border-top: 1px solid #e0e0e0;
-    }
-    
-    .action-button {
-        background: none;
-        border: none;
-        color: #666;
-        cursor: pointer;
-        font-size: 13px;
-        padding: 4px 12px;
-        border-radius: 4px;
-    }
-    
-    .action-button:hover {
-        background-color: #f0f0f0;
-        color: #000;
-    }
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600&display=swap');
+
+html, body, [class*="css"] { font-family: 'Sora', sans-serif !important; }
+
+/* Dark background */
+.stApp { background: #0d0f14; }
+section[data-testid="stSidebar"] { background: #161a24 !important; border-right: 1px solid rgba(255,255,255,0.07); }
+
+/* Buttons */
+.stButton > button {
+    background: linear-gradient(135deg, #6e8efb, #a777e3) !important;
+    color: white !important; border: none !important;
+    border-radius: 10px !important; font-family: 'Sora', sans-serif !important;
+    font-size: 12px !important; font-weight: 500 !important;
+    transition: opacity 0.15s !important;
+}
+.stButton > button:hover { opacity: 0.85 !important; }
+
+/* Chat messages */
+[data-testid="stChatMessage"] { background: #1e2333 !important; border-radius: 14px !important; border: 1px solid rgba(255,255,255,0.07) !important; }
+
+/* Chat input */
+[data-testid="stChatInput"] { background: #161a24 !important; border: 1px solid rgba(255,255,255,0.07) !important; border-radius: 16px !important; }
+textarea { background: transparent !important; color: #e8eaf0 !important; font-family: 'Sora', sans-serif !important; }
+
+/* Text colors */
+p, h1, h2, h3, label, span { color: #e8eaf0 !important; }
+
+/* Action buttons styling */
+.message-actions { display: flex; gap: 12px; margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.07); }
+.action-button { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: #a0a4b0; cursor: pointer; font-size: 12px; padding: 4px 12px; border-radius: 8px; }
+.action-button:hover { background: rgba(255,255,255,0.05); color: white; }
+
+/* File uploader */
+[data-testid="stFileUploader"] button { background: #161a24 !important; border: 1px solid rgba(255,255,255,0.15) !important; color: #e8eaf0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,25 +136,22 @@ for idx, message in enumerate(st.session_state.messages):
         else:
             st.markdown(content)
         
-        # Action buttons for assistant messages
         if message["role"] == "assistant":
-            cols = st.columns(4)
+            col1, col2, col3, col4 = st.columns(4)
             
-            # Copy button
-            with cols[0]:
+            with col1:
                 if st.button("Copy", key=f"copy_{idx}"):
                     try:
-                        pyperclip.copy(content if isinstance(content, str) else content["text"])
+                        text_to_copy = content if isinstance(content, str) else content["text"]
+                        pyperclip.copy(text_to_copy)
                         st.toast("Copied to clipboard!", icon="✓")
                     except:
-                        st.toast("Copy manually (Ctrl+C)", icon="⚠️")
+                        st.toast("Copy manually", icon="⚠️")
             
-            # Retry button - regenerate response
-            with cols[1]:
+            with col2:
                 if st.button("Retry", key=f"retry_{idx}"):
                     with st.spinner("Regenerating..."):
                         try:
-                            # Find the user message before this assistant message
                             user_msg_idx = idx - 1
                             if user_msg_idx >= 0 and st.session_state.messages[user_msg_idx]["role"] == "user":
                                 user_prompt = st.session_state.messages[user_msg_idx]["content"]
@@ -166,17 +171,15 @@ for idx, message in enumerate(st.session_state.messages):
                         except Exception as e:
                             st.error(f"Error: {e}")
             
-            # Stop button (just shows message - can't truly stop API call once sent)
-            with cols[2]:
+            with col3:
                 if st.button("Stop", key=f"stop_{idx}"):
-                    st.toast("Generation stopped (API call already completed)", icon="⚠️")
+                    st.toast("Cannot stop completed response", icon="⚠️")
             
-            # Share button
-            with cols[3]:
+            with col4:
                 if st.button("Share", key=f"share_{idx}"):
-                    share_text = content if isinstance(content, str) else content["text"]
                     try:
-                        pyperclip.copy(share_text[:500] + "...")
+                        share_text = content if isinstance(content, str) else content["text"]
+                        pyperclip.copy(share_text[:300] + "...")
                         st.toast("Share text copied!", icon="✓")
                     except:
                         st.toast("Select and copy to share", icon="⚠️")
@@ -217,7 +220,6 @@ if prompt:
     
     st.session_state.messages.append({"role": "user", "content": user_message_content})
     
-    # Generate response immediately
     with st.spinner("Thinking..."):
         try:
             messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
