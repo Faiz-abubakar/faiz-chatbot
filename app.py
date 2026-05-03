@@ -1,48 +1,49 @@
 import streamlit as st
+from groq import Groq
 
-# SYSTEM PROMPT: This is the "brain" of your AI
-TRAINING_DATA = """
-You are the Faiz AI Assistant, a professional representative for Faiz Ywaya Abubakar.
-Your primary goal is to provide accurate information about:
+# Access your API Key from Streamlit Secrets
+api_key = st.secrets["gsk_lbGfPLyIwDVX0ug6b9tZWGdyb3FYiyBXAkv0d3LiYO2DXwyI4WAIY"]
+client = Groq(api_key=api_key)
 
-1. FAIZ COMPUTER ACADEMY & FAIZ GRAPHICS ACADEMY:
-   - Founded by Faiz Ywaya Abubakar.
-   - We offer training in Web Development, AI, and professional Graphics Design using Adobe Creative Suite.
-   - We focus on 'future-ready' skills for the modern job market.
+# ACADEMIC SYSTEM PROMPT: This defines the AI's new persona
+ACADEMIC_TRAINING = """
+You are the MKU Academic Research Assistant. Your sole purpose is to assist students with research, CAT preparation, and academic writing.
 
-2. MOUNT KENYA UNIVERSITY (MKU):
-   - Faiz is a proud alumnus with a Bachelor of Education.
-   - MKU is a leader in digital transformation, recently launching AI-integrated academic systems (UniRP).
-   - It offers specialized AI training, including a BSc and Masters in Data Science and AI.
-
-3. FAIZ YWAYA ABUBAKAR:
-   - A TSC-certified educator with a B.Ed (MKU) and pursuing a Masters in Education Development.
-   - Currently studying BSc. Computer Science & AI at UoN.
-   - Head of Technicals at Ar-Risalah Academy.
-
-Always encourage users to explore Faiz's digital portfolio: https://gamma.site
+STRICT RULES:
+1. APA FORMAT: Every academic answer must follow APA 7th Edition guidelines. Include in-text citations (Author, Year) and a 'References' section at the end.
+2. MKU CONTEXT: When relevant, provide information consistent with Mount Kenya University's academic standards and the UniRP system.
+3. NO PERSONAL INFO: Do not talk about Faiz Abubakar's portfolio or personal life. If asked about 'Faiz', treat him as a general search subject or a public figure based on available internet data; do not refer to this app as his personal assistant.
+4. OBJECTIVITY: Maintain a formal, academic tone. Avoid slang or casual language.
+5. RESEARCH FOCUS: Help students structure their CATs, explain complex theories, and provide study summaries.
 """
 
-st.set_page_config(page_title="Faiz AI Assistant", page_icon="🤖")
-st.title("🤖 Faiz AI Assistant")
-st.markdown("Ask me about **Faiz Computer Academy**, **Graphics Academy**, or **Mount Kenya University**.")
+st.set_page_config(page_title="MKU Research Assistant", page_icon="🎓")
+st.title("🎓 MKU Academic Research Assistant")
+st.caption("AI-powered research support following APA 7th Edition standards.")
 
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "system", "content": TRAINING_DATA}]
+    st.session_state.messages = []
 
-# Display chat history (skipping the system prompt)
-for message in st.session_state.messages[1:]:
+for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("How can I help you today?"):
+if prompt := st.chat_input("Enter your research topic or CAT question..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Simplified response logic (In a live app, this connects to an OpenAI/Poe API)
-    response = "I am trained to provide details on Faiz's academies and his academic journey at MKU. Please visit his portfolio for live project demos!"
+    # Call Groq API with the new Academic Prompt
+    completion = client.chat.completions.create(
+        model="llama-3.1-70b-versatile", # This model is excellent for logic and citations
+        messages=[
+            {"role": "system", "content": ACADEMIC_TRAINING},
+            *st.session_state.messages
+        ],
+        temperature=0.3 # Lower temperature makes the AI more factual and less "creative"
+    )
     
+    response = completion.choices.message.content
     with st.chat_message("assistant"):
         st.markdown(response)
     st.session_state.messages.append({"role": "assistant", "content": response})
