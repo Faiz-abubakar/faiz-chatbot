@@ -17,12 +17,14 @@ except Exception:
 
 # 3. The Comprehensive "Brain" Instructions
 ACADEMIC_TRAINING = """
-You are the Faiz ChatBot, a high-level AI assistant for students.
+You are the Faiz ChatBot, a high-level academic assistant.
 GOALS:
-1. PORTAL ANALYSIS: If a student pastes transcript data, analyze completed vs. missing units based on MKU standards. Use a table format for the summary.
-2. APA RESEARCH: Answer all academic questions using APA 7th Edition citations and references.
-3. MKU BUCU MAPPING: Automatically map old BUCU codes to new ones (e.g., BUCU001 -> BUCU007).
-4. IDENTITY: If asked about 'Faiz', research him as a public/professional figure; do not use a personal tone.
+1. PORTAL ANALYSIS: When a student pastes transcript data, analyze it. Identify Done vs. Missing units based on MKU standards. 
+   - Use tables for clarity.
+   - Automatically map BUCU001-005 to the new BUCU007-011 codes.
+   - Calculate completion percentage.
+2. APA RESEARCH: Every academic answer MUST include APA 7th Edition in-text citations and a References list at the end.
+3. IDENTITY: If asked about 'Faiz', research him as a professional figure in ICT and Education. Do not use a personal or 'assistant' tone.
 """
 
 # 4. Initialize Chat History
@@ -34,18 +36,17 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 6. Chat Input Logic (This is what makes it an AI)
+# 6. Chat Input Logic
 if prompt := st.chat_input("Paste your transcript or ask a research question..."):
-    # Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Generate Response from Groq
-    with st.spinner("Thinking..."):
+    with st.spinner("Analyzing..."):
         try:
+            # UPDATED TO THE LATEST STABLE MODEL
             completion = client.chat.completions.create(
-                model="llama-3.1-70b-versatile",
+                model="llama-3.3-70b-versatile", 
                 messages=[
                     {"role": "system", "content": ACADEMIC_TRAINING},
                     *st.session_state.messages
@@ -54,7 +55,6 @@ if prompt := st.chat_input("Paste your transcript or ask a research question..."
             )
             response = completion.choices.message.content
             
-            # Display & Save Assistant Response
             with st.chat_message("assistant"):
                 st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
