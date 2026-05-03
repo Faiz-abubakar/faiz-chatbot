@@ -1,4 +1,8 @@
 streamlit
 groq
 tenacity
-pyperclip
+requests
+beautifulsoup4
+PyPDF2
+docx2txt
+Pillow
