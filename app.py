@@ -4,15 +4,14 @@ from groq import Groq
 # 1. Page Config
 st.set_page_config(page_title="Faiz ChatBot", page_icon=None, layout="wide")
 
-# 2. LOAD FONT AWESOME (Pro Icons)
+# 2. LOAD FONT AWESOME (Professional Icons)
 st.markdown('<link rel="stylesheet" href="https://cloudflare.com">', unsafe_allow_html=True)
 
-# 3. SIDEBAR WITH PRO ICONS
+# 3. SIDEBAR
 with st.sidebar:
     st.markdown('<h2><i class="fa-solid fa-microchip"></i> Faiz ChatBot</h2>', unsafe_allow_html=True)
     st.markdown("---")
     
-    # Custom Styled Button using HTML/CSS (replacing the standard emoji button)
     if st.button("Clear Conversation"): 
         st.session_state.messages = []
         st.rerun()
@@ -26,7 +25,7 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-# 4. MAIN HEADER (No Emojis)
+# 4. MAIN HEADER
 st.markdown('<h1><i class="fa-solid fa-graduation-cap"></i> Faiz ChatBot</h1>', unsafe_allow_html=True)
 st.markdown("##### *Academic Research & Portal Intelligence Partner*")
 st.markdown("---")
@@ -43,9 +42,9 @@ except Exception:
 ACADEMIC_TRAINING = """
 You are the Faiz ChatBot. 
 RULES:
-1. End every response with 2-3 'Next Steps' starting with 'Would you like to...'.
-2. If asked to 'Continue', pick up exactly where you left off.
-3. Use professional, clear language.
+1. End every response with 2-3 'Next Steps' suggestions starting with 'Would you like to...'.
+2. If the user asks for APA format, provide in-text citations and a References list.
+3. If asked to 'Continue', pick up exactly where you left off.
 """
 
 # 7. Initialize Chat History
@@ -54,11 +53,10 @@ if "messages" not in st.session_state:
 
 # 8. Display Chat
 for message in st.session_state.messages:
-    # We use 'user' and 'assistant' roles which Streamlit styles automatically
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 9. Chat Input with Smart Suggestions
+# 9. Chat Input
 if prompt := st.chat_input("Type your research question or paste transcript data..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
@@ -71,11 +69,12 @@ if prompt := st.chat_input("Type your research question or paste transcript data
                 messages=[{"role": "system", "content": ACADEMIC_TRAINING}] + st.session_state.messages,
                 temperature=0.3
             )
-            response = completion.choices.message.content
+            
+            # CRITICAL FIX: Added [0] to access the message object correctly
+            response = completion.choices[0].message.content
             
             with st.chat_message("assistant"):
                 st.markdown(response)
-                # Tip with icon instead of bulb emoji
                 st.markdown('<p style="color: grey;"><i class="fa-solid fa-bolt"></i> <i>Tip: Type "Continue" if the response was cut off.</i></p>', unsafe_allow_html=True)
 
             st.session_state.messages.append({"role": "assistant", "content": response})
