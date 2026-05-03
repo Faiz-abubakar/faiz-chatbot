@@ -1,13 +1,10 @@
 import streamlit as st
 from groq import Groq
-import pandas as pd
-import matplotlib.pyplot as plt
+import PyPDF2
+import docx2txt
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-st.set_page_config(
-    page_title="Faiz ChatBot",
-    page_icon="Faiz Chatbot Logo.png",
-    layout="wide"
-)
+st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
 try:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -17,41 +14,43 @@ except Exception:
     st.stop()
 
 CLAUDE_PROTOCOL = """
-You are Faiz ChatBot, an interactive assistant built on the Claude Protocol. 
-TONE AND STYLE:
-- Be concise, direct, and to the point. 
-- Minimize output tokens. If you can answer in 1-3 sentences, do so.
-- NEVER use unnecessary preamble (e.g., "The answer is...", "Based on the info...") or postamble.
-- Match the level of detail to the complexity of the query.
-- Use Github-flavored markdown for formatting. 
-- Only use emojis if explicitly requested.
-
-PROFESSIONAL OBJECTIVITY:
-- Prioritize technical accuracy over validating user beliefs. 
-- Focus on facts and problem-solving. No unnecessary superlatives or praise.
-- Disagree when necessary and provide respectful correction.
-
-ACADEMIC/PORTAL LOGIC:
-- Analyze MKU transcripts via tables. 
-- Prioritize Kenyan context. 
-- NO APA references or citations.
+You are Faiz ChatBot, a direct, concise academic assistant.
+- Be extremely concise (1-3 sentences when possible)
+- No preamble like "Here is the answer" - answer directly
+- No postamble or summaries unless asked
+- No citations or markdown formatting
+- Prioritize Kenyan context
+- Do what has been asked; nothing more, nothing less
 """
+
+def extract_file_content(uploaded_file):
+    if uploaded_file.type == "text/plain":
+        return uploaded_file.read().decode()
+    elif uploaded_file.type == "application/pdf":
+        reader = PyPDF2.PdfReader(uploaded_file)
+        return " ".join([page.extract_text() for page in reader.pages])
+    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return docx2txt.process(uploaded_file)
+    return None
+
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
+def get_completion(messages):
+    return client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.2,
+        max_tokens=1024
+    )
 
 with st.sidebar:
     st.image("Faiz Chatbot Logo.png", use_container_width=True)
     st.markdown("---")
-    st.markdown("### Upload Lab")
-    uploaded_file = st.file_uploader("Upload Image or Document", type=['png', 'jpg', 'pdf', 'docx', 'txt'])
-    
-    if uploaded_file is not None:
-        st.success(f"File '{uploaded_file.name}' ready.")
-
     if st.button("Clear Conversation"):
         st.session_state.messages = []
         st.rerun()
 
 st.image("Faiz Chatbot Logo.png", width=150)
-st.markdown("##### *Your Academic Research & Portal Intelligence Partner*")
+st.markdown("##### *Academic Research & Portal Intelligence Partner*")
 st.markdown("---")
 
 if "messages" not in st.session_state:
@@ -61,22 +60,22 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-if prompt := st.chat_input("Ask a question..."):
+uploaded_file = st.file_uploader("Upload context", type=['png', 'jpg', 'pdf', 'docx', 'txt'], label_visibility="collapsed")
+
+if prompt := st.chat_input("Ask anything..."):
     final_prompt = prompt
     if uploaded_file:
-        final_prompt = f"File: {uploaded_file.name}. Task: {prompt}"
-
+        file_content = extract_file_content(uploaded_file)
+        if file_content:
+            final_prompt = f"Context from {uploaded_file.name}:\n{file_content[:3000]}\n\nQuestion: {prompt}"
+    
     st.session_state.messages.append({"role": "user", "content": final_prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
+    
     with st.spinner("Processing..."):
         try:
-            completion = client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=[{"role": "system", "content": CLAUDE_PROTOCOL}] + st.session_state.messages,
-                temperature=0.2
-            )
+            completion = get_completion([{"role": "system", "content": CLAUDE_PROTOCOL}] + st.session_state.messages[-10:])
             response = completion.choices[0].message.content
             
             with st.chat_message("assistant"):
