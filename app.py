@@ -42,9 +42,8 @@ if prompt := st.chat_input("Paste your transcript or ask a research question..."
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.spinner("Analyzing..."):
+    with st.spinner("Thinking..."):
         try:
-            # UPDATED TO THE LATEST STABLE MODEL
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile", 
                 messages=[
@@ -53,7 +52,9 @@ if prompt := st.chat_input("Paste your transcript or ask a research question..."
                 ],
                 temperature=0.3
             )
-            response = completion.choices.message.content
+            
+            # THE FIX IS HERE: Added [0]
+            response = completion.choices[0].message.content
             
             with st.chat_message("assistant"):
                 st.markdown(response)
