@@ -2,18 +2,7 @@ import streamlit as st
 from groq import Groq
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-# Try to import optional dependencies with fallbacks
-try:
-    import PyPDF2
-except ImportError:
-    PyPDF2 = None
-
-try:
-    import docx2txt
-except ImportError:
-    docx2txt = None
-
-st.set_page_config(page_title="Faiz ChatBot", page_icon="⚡", layout="wide")
+st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
 try:
     api_key = st.secrets["GROQ_API_KEY"]
@@ -23,85 +12,49 @@ except Exception:
     st.stop()
 
 CLAUDE_PROTOCOL = """
-You are Faiz ChatBot, a direct, concise academic assistant.
-- Be extremely concise (1-3 sentences when possible)
-- No preamble or postamble - answer directly
-- No citations or markdown formatting
-- Prioritize Kenyan context
-- Use web search to find current information when needed
-- Do what has been asked; nothing more, nothing less
+You are Faiz ChatBot, a helpful academic assistant.
+- Answer questions helpfully and thoroughly
+- Provide code when asked for code
+- Explain concepts clearly
+- Be friendly and conversational
+- Prioritize Kenyan context when relevant
 """
 
 def extract_file_content(uploaded_file):
-    if uploaded_file.type == "text/plain":
-        return uploaded_file.read().decode()
-    elif uploaded_file.type == "application/pdf":
-        if PyPDF2 is None:
-            return "[PDF support not installed. Install PyPDF2 to read PDFs.]"
-        reader = PyPDF2.PdfReader(uploaded_file)
-        text_pages = []
-        for page in reader.pages[:5]:
-            text_pages.append(page.extract_text())
-        return " ".join(text_pages)
-    elif uploaded_file.type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        if docx2txt is None:
-            return "[DOCX support not installed. Install docx2txt to read Word documents.]"
-        return docx2txt.process(uploaded_file)
+    if uploaded_file is None:
+        return None
+    try:
+        if uploaded_file.type == "text/plain":
+            return uploaded_file.read().decode()
+    except:
+        pass
     return None
 
 @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=2, max=10))
-def get_completion(messages, enable_search=False):
-    if enable_search:
-        try:
-            return client.chat.completions.create(
-                model="groq/compound",
-                messages=messages,
-                temperature=0.2,
-                max_tokens=2048
-            )
-        except:
-            # Fallback to standard model if compound not available
-            return client.chat.completions.create(
-                model="llama-3.3-70b-versatile",
-                messages=messages,
-                temperature=0.2,
-                max_tokens=1024
-            )
-    else:
-        return client.chat.completions.create(
-            model="llama-3.3-70b-versatile",
-            messages=messages,
-            temperature=0.2,
-            max_tokens=1024
-        )
+def get_completion(messages):
+    return client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=messages,
+        temperature=0.7,
+        max_tokens=2048
+    )
 
 # Sidebar
 with st.sidebar:
     st.image("Faiz Chatbot Logo.png", use_container_width=True)
     st.markdown("# Faiz ChatBot")
-    st.markdown("#### Your Academic Research & Portal Intelligence Partner")
+    st.markdown("#### Your Academic Research Partner")
     st.markdown("---")
     
-    uploaded_file = st.file_uploader(
-        "Upload Image or Document", 
-        type=['png', 'jpg', 'pdf', 'docx', 'txt'],
-        help="PNG, JPG, PDF, DOCX, TXT (Max 200MB)"
-    )
-    
-    enable_web_search = st.toggle("🌐 Enable Web Search", value=False)
-    
-    st.markdown("---")
+    uploaded_file = st.file_uploader("Upload Document", type=['txt'])
     
     if st.button("🗑️ Clear Conversation", use_container_width=True):
         st.session_state.messages = []
         st.rerun()
-    
-    st.markdown("---")
-    st.caption("Powered by Groq | v2.0")
 
 # Main chat area
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [{"role": "assistant", "content": "Hello! How can I help you today?"}]
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -110,31 +63,26 @@ for message in st.session_state.messages:
 # Chat input
 if prompt := st.chat_input("Ask a question..."):
     final_prompt = prompt
-    file_content = None
-    
-    if uploaded_file and uploaded_file.name:
+    if uploaded_file:
         file_content = extract_file_content(uploaded_file)
-        if file_content and not file_content.startswith("["):
-            final_prompt = f"Context from {uploaded_file.name}:\n{file_content[:3000]}\n\nQuestion: {prompt}"
+        if file_content:
+            final_prompt = f"File content:\n{file_content[:2000]}\n\nQuestion: {prompt}"
     
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
     
-    with st.spinner("Searching..." if enable_web_search else "Thinking..."):
+    with st.spinner("Thinking..."):
         try:
             messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-            messages_for_api += st.session_state.messages[-10:]
+            messages_for_api += st.session_state.messages[-20:]
             
-            completion = get_completion(messages_for_api, enable_search=enable_web_search)
+            completion = get_completion(messages_for_api)
             response = completion.choices[0].message.content
             
             with st.chat_message("assistant"):
                 st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            if file_content and not file_content.startswith("["):
-                st.toast(f"✅ Processed: {uploaded_file.name}", icon="📄")
                 
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            st.error(f"Error: {e}")
