@@ -1,90 +1,59 @@
 import streamlit as st
-from google import genai
+# Try the modern import first, fallback if the server is cached
+try:
+    from google import genai
+except ImportError:
+    import google.generativeai as genai
 
-# 1. Page Config & Professional Theme
-st.set_page_config(page_title="Faiz AI General Tool", page_icon="🛠️", layout="wide")
+# 1. Page Config & CSS (Fixed parameter)
+st.set_page_config(page_title="Faiz AI General Tool", page_icon="🛠️")
 
-# Applying your specific #CBDDE9 and #2872A1 color scheme
 st.markdown(f"""
     <style>
-    .stApp {{
-        background-color: #FFFFFF;
-    }}
-    /* Sidebar styling */
-    [data-testid="stSidebar"] {{
-        background-color: #CBDDE9;
-    }}
-    /* Button and Header styling */
+    .stApp {{ background-color: #FFFFFF; }}
+    [data-testid="stSidebar"] {{ background-color: #CBDDE9; }}
     .stButton>button {{
         background-color: #2872A1;
         color: white;
         border-radius: 8px;
-        border: none;
     }}
-    h1, h2, h3, p {{
-        color: #2872A1;
-    }}
-    /* Chat message bubble styling */
-    .stChatMessage {{
-        border-radius: 15px;
-    }}
+    h1, h2, h3, p {{ color: #2872A1; }}
     </style>
     """, unsafe_allow_html=True)
 
-# 2. Securely Initialize Gemini Client
+# 2. Client Initialization
 if "GEMINI_API_KEY" in st.secrets:
-    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+    api_key = st.secrets["GEMINI_API_KEY"]
+    # Handle both new and old SDK versions automatically
+    try:
+        client = genai.Client(api_key=api_key)
+        use_new_sdk = True
+    except AttributeError:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        use_new_sdk = False
 else:
-    st.sidebar.error("⚠️ API Key not found in Streamlit Secrets.")
+    st.error("Missing GEMINI_API_KEY in secrets!")
     st.stop()
 
-# 3. Sidebar Information
-with st.sidebar:
-    st.title("Faiz Design Tool")
-    st.markdown("---")
-    st.write("**Location:** Nairobi / Nakuru")
-    st.write("**Focus:** ICT, STEM, & Graphics")
-    if st.button("Clear Chat"):
-        st.session_state.messages = []
-        st.rerun()
-
-# 4. Main Chat Interface
-st.title("🚀 Faiz AI General Tool")
-st.caption("Powered by Gemini 3 Flash")
-
-# Initialize Chat History
+# 3. Chat Logic
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display Messages from history
-for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
-        st.markdown(message["content"])
+for msg in st.session_state.messages:
+    st.chat_message(msg["role"]).write(msg["content"])
 
-# 5. Chat Logic
-if prompt := st.chat_input("How can I assist with your ICT or Design project?"):
-    # Display user message
-    st.chat_message("user").markdown(prompt)
+if prompt := st.chat_input("How can I help with ICT or Design?"):
+    st.chat_message("user").write(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Generate Streamed Response
     with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
-        
-        try:
-            # Using Gemini 3 Flash for maximum speed
-            response = client.models.generate_content_stream(
-                model="gemini-3-flash",
-                contents=prompt
-            )
+        if use_new_sdk:
+            response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+            output = response.text
+        else:
+            response = model.generate_content(prompt)
+            output = response.text
             
-            for chunk in response:
-                full_response += chunk.text
-                message_placeholder.markdown(full_response + "▌")
-            
-            message_placeholder.markdown(full_response)
-            st.session_state.messages.append({"role": "assistant", "content": full_response})
-            
-        except Exception as e:
-            st.error(f"Developer Error: {e}")
+        st.write(output)
+        st.session_state.messages.append({"role": "assistant", "content": output})
