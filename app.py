@@ -74,22 +74,22 @@ if prompt := st.chat_input("Type your research question..."):
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.spinner("Processing..."):
+        with st.spinner("Processing..."):
         try:
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile", 
                 messages=[{"role": "system", "content": ACADEMIC_TRAINING}] + st.session_state.messages,
                 temperature=0.3
             )
-            response = completion.choices[0].message.content
             
-            with st.chat_message("assistant"):
-                st.markdown(response)
+            # THE FIX IS HERE: Added 
+            response = completion.choices.message.content
             
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # 3. FORCE REFRESH to show the new history title in the sidebar
+            # FORCE REFRESH to show the new history title and the AI answer
             st.rerun()
             
         except Exception as e:
             st.error(f"Error: {e}")
+
