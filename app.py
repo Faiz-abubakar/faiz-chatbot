@@ -42,7 +42,7 @@ def create_progress_chart(done, remaining):
     return fig
 
 # 5. Header Section (Streamly Style)
-logo_base64 = img_to_base64("logo.png")
+logo_base64 = img_to_base64("Faiz Chatbot Logo.png")
 if logo_base64:
     st.markdown(
         f"""
@@ -60,7 +60,7 @@ st.markdown("---")
 
 # 6. Sidebar (Streamly Style)
 with st.sidebar:
-    st.image("logo.png", width=100)
+    st.image("Faiz Chatbot Logo.png", width=100)
     st.markdown("### About Faiz ChatBot")
     st.info("""
         **Powered by Llama 3.3**
