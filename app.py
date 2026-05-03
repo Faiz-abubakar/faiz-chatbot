@@ -13,9 +13,8 @@ if "messages" not in st.session_state:
 if "history_titles" not in st.session_state:
     st.session_state.history_titles = []
 
-# 4. SIDEBAR WITH LOGIC FIX
+# 4. SIDEBAR
 with st.sidebar:
-    # Use standard text for the title to avoid rendering errors
     st.title("Faiz ChatBot")
     
     if st.button("Clear Conversation"): 
@@ -24,18 +23,15 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    # Using markdown for history title
     st.markdown("### Recent Chats")
     
     if not st.session_state.history_titles:
         st.caption("No recent chats yet.")
     else:
         for title in reversed(st.session_state.history_titles):
-            # Clean display for history
             st.write(f"• {title[:25]}...")
 
     st.markdown("---")
-    # Clean Guide box
     with st.expander("User Guide", expanded=True):
         st.write("• Academic Research")
         st.write("• Portal Transcript Audit")
@@ -62,19 +58,18 @@ for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 9. Chat Input with INSTANT HISTORY UPDATE
+# 9. Chat Input
 if prompt := st.chat_input("Type your research question..."):
-    # 1. Add to sidebar history immediately
     if prompt not in st.session_state.history_titles:
         st.session_state.history_titles.append(prompt)
     
-    # 2. Add user message to history
     st.session_state.messages.append({"role": "user", "content": prompt})
     
     with st.chat_message("user"):
         st.markdown(prompt)
 
-        with st.spinner("Processing..."):
+    # --- FIX: Correct Indentation starts here ---
+    with st.spinner("Processing..."):
         try:
             completion = client.chat.completions.create(
                 model="llama-3.3-70b-versatile", 
@@ -82,14 +77,11 @@ if prompt := st.chat_input("Type your research question..."):
                 temperature=0.3
             )
             
-            # THE FIX IS HERE: Added 
-            response = completion.choices.message.content
+            # Use choice 0 to get the content
+            response = completion.choices[0].message.content
             
             st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            # FORCE REFRESH to show the new history title and the AI answer
             st.rerun()
             
         except Exception as e:
             st.error(f"Error: {e}")
-
