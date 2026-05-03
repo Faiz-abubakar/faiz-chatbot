@@ -1,42 +1,39 @@
 import streamlit as st
 from groq import Groq
 from tenacity import retry, stop_after_attempt, wait_exponential
+import pyperclip
 
 st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
-# Custom CSS for mobile responsive design and no emojis
 st.markdown("""
 <style>
     @media (max-width: 768px) {
         .stChatMessage {
             font-size: 14px;
         }
-        .stButton button {
-            font-size: 12px;
-            padding: 4px 8px;
-        }
     }
     
     .message-actions {
         display: flex;
-        gap: 12px;
-        margin-top: 8px;
-        font-size: 12px;
+        gap: 16px;
+        margin-top: 12px;
+        padding-top: 8px;
+        border-top: 1px solid #e0e0e0;
     }
     
-    .action-link {
+    .action-button {
+        background: none;
+        border: none;
         color: #666;
-        text-decoration: none;
         cursor: pointer;
-        font-size: 12px;
-    }
-    .action-link:hover {
-        color: #000;
+        font-size: 13px;
+        padding: 4px 12px;
+        border-radius: 4px;
     }
     
-    /* Hide default emoji in file uploader */
-    [data-testid="stFileUploader"] button {
-        font-size: 20px;
+    .action-button:hover {
+        background-color: #f0f0f0;
+        color: #000;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -58,8 +55,6 @@ CAPABILITIES:
 - Provide academic research
 - Explain complex topics
 - Give directions and navigation help
-- Translate languages
-- Solve math problems
 
 STYLE:
 - Be helpful, thorough, and detailed
@@ -92,6 +87,7 @@ if "messages" not in st.session_state:
 if "uploaded_file" not in st.session_state:
     st.session_state.uploaded_file = None
 
+# Sidebar
 with st.sidebar:
     st.image("Faiz Chatbot Logo.png", use_container_width=True)
     st.markdown("# Faiz ChatBot")
@@ -104,88 +100,19 @@ with st.sidebar:
         st.rerun()
     
     st.markdown("---")
-    
     st.markdown("### Quick Actions")
     
-    if st.button("What's on the agenda today?", use_container_width=True):
-        prompt = "What's on the agenda today?"
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.spinner("Thinking..."):
-            try:
-                messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-                for m in st.session_state.messages[-20:]:
-                    content = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
-                    messages_for_api.append({"role": m["role"], "content": content})
-                completion = get_completion(messages_for_api)
-                response = completion.choices[0].message.content
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
+    quick_actions = [
+        "What's on the agenda today?",
+        "Create an image",
+        "Write or edit text",
+        "Look something up"
+    ]
     
-    if st.button("Create an image", use_container_width=True):
-        prompt = "Give me a detailed prompt for generating an image"
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.spinner("Thinking..."):
-            try:
-                messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-                for m in st.session_state.messages[-20:]:
-                    content = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
-                    messages_for_api.append({"role": m["role"], "content": content})
-                completion = get_completion(messages_for_api)
-                response = completion.choices[0].message.content
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-    
-    if st.button("Write or edit text", use_container_width=True):
-        prompt = "Help me write or edit some text"
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.spinner("Thinking..."):
-            try:
-                messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-                for m in st.session_state.messages[-20:]:
-                    content = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
-                    messages_for_api.append({"role": m["role"], "content": content})
-                completion = get_completion(messages_for_api)
-                response = completion.choices[0].message.content
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
-    
-    if st.button("Look something up", use_container_width=True):
-        prompt = "Help me look up information"
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
-        with st.spinner("Thinking..."):
-            try:
-                messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-                for m in st.session_state.messages[-20:]:
-                    content = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
-                    messages_for_api.append({"role": m["role"], "content": content})
-                completion = get_completion(messages_for_api)
-                response = completion.choices[0].message.content
-                with st.chat_message("assistant"):
-                    st.markdown(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                st.rerun()
-            except Exception as e:
-                st.error(f"Error: {e}")
+    for action in quick_actions:
+        if st.button(action, use_container_width=True):
+            st.session_state.messages.append({"role": "user", "content": action})
+            st.rerun()
     
     st.markdown("---")
     web_access = st.checkbox("Web access")
@@ -201,31 +128,58 @@ for idx, message in enumerate(st.session_state.messages):
         else:
             st.markdown(content)
         
+        # Action buttons for assistant messages
         if message["role"] == "assistant":
-            col1, col2, col3, col4 = st.columns([1, 1, 1, 6])
-            with col1:
+            cols = st.columns(4)
+            
+            # Copy button
+            with cols[0]:
                 if st.button("Copy", key=f"copy_{idx}"):
-                    st.toast("Copied to clipboard", icon=None)
-            with col2:
+                    try:
+                        pyperclip.copy(content if isinstance(content, str) else content["text"])
+                        st.toast("Copied to clipboard!", icon="✓")
+                    except:
+                        st.toast("Copy manually (Ctrl+C)", icon="⚠️")
+            
+            # Retry button - regenerate response
+            with cols[1]:
                 if st.button("Retry", key=f"retry_{idx}"):
                     with st.spinner("Regenerating..."):
                         try:
-                            messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-                            for m in st.session_state.messages[:idx]:
-                                c = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
-                                messages_for_api.append({"role": m["role"], "content": c})
-                            completion = get_completion(messages_for_api)
-                            new_response = completion.choices[0].message.content
-                            st.session_state.messages[idx]["content"] = new_response
-                            st.rerun()
+                            # Find the user message before this assistant message
+                            user_msg_idx = idx - 1
+                            if user_msg_idx >= 0 and st.session_state.messages[user_msg_idx]["role"] == "user":
+                                user_prompt = st.session_state.messages[user_msg_idx]["content"]
+                                if isinstance(user_prompt, dict):
+                                    user_prompt = user_prompt["text"]
+                                
+                                messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
+                                for i in range(user_msg_idx + 1):
+                                    msg = st.session_state.messages[i]
+                                    c = msg["content"] if isinstance(msg["content"], str) else msg["content"]["text"]
+                                    messages_for_api.append({"role": msg["role"], "content": c})
+                                
+                                completion = get_completion(messages_for_api)
+                                new_response = completion.choices[0].message.content
+                                st.session_state.messages[idx]["content"] = new_response
+                                st.rerun()
                         except Exception as e:
                             st.error(f"Error: {e}")
-            with col3:
+            
+            # Stop button (just shows message - can't truly stop API call once sent)
+            with cols[2]:
                 if st.button("Stop", key=f"stop_{idx}"):
-                    st.toast("Generation stopped", icon=None)
-            with col4:
+                    st.toast("Generation stopped (API call already completed)", icon="⚠️")
+            
+            # Share button
+            with cols[3]:
                 if st.button("Share", key=f"share_{idx}"):
-                    st.toast("Share link ready", icon=None)
+                    share_text = content if isinstance(content, str) else content["text"]
+                    try:
+                        pyperclip.copy(share_text[:500] + "...")
+                        st.toast("Share text copied!", icon="✓")
+                    except:
+                        st.toast("Select and copy to share", icon="⚠️")
 
 # Chat input area
 col1, col2 = st.columns([10, 1])
@@ -242,7 +196,7 @@ with col2:
     )
     if uploaded_file:
         if uploaded_file.size > 5 * 1024 * 1024:
-            st.error("Maximum file size is 5MB")
+            st.error("Maximum size is 5MB")
         else:
             st.session_state.uploaded_file = uploaded_file
             st.success(f"Loaded: {uploaded_file.name}")
@@ -262,25 +216,19 @@ if prompt:
         user_message_content = {"text": prompt, "file": st.session_state.uploaded_file.name}
     
     st.session_state.messages.append({"role": "user", "content": user_message_content})
-    with st.chat_message("user"):
-        st.markdown(prompt)
-        if st.session_state.uploaded_file:
-            st.caption(f"Attached: {st.session_state.uploaded_file.name}")
     
+    # Generate response immediately
     with st.spinner("Thinking..."):
         try:
             messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-            for m in st.session_state.messages[-20:]:
+            for m in st.session_state.messages:
                 content = m["content"] if isinstance(m["content"], str) else m["content"]["text"]
                 messages_for_api.append({"role": m["role"], "content": content})
             
             completion = get_completion(messages_for_api)
             response = completion.choices[0].message.content
             
-            with st.chat_message("assistant"):
-                st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
-            
             st.session_state.uploaded_file = None
             st.rerun()
             
