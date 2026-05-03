@@ -1,14 +1,6 @@
 import streamlit as st
 from groq import Groq
-import PyPDF2
-import docx2txt
-from PIL import Image
-import io
-import base64
 from tenacity import retry, stop_after_attempt, wait_exponential
-import requests
-from bs4 import BeautifulSoup
-import json
 
 st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
@@ -19,7 +11,6 @@ except Exception:
     st.error("API Key not found. Please check Streamlit Secrets.")
     st.stop()
 
-# Powerful system prompt for general-purpose AI
 CLAUDE_PROTOCOL = """
 You are Faiz ChatBot, a powerful, all-purpose AI assistant capable of handling ANY task.
 
@@ -28,14 +19,11 @@ CAPABILITIES:
 - Write, debug, and explain code in any programming language
 - Generate creative content (stories, poems, scripts)
 - Provide academic research assistance
-- Offer mental health support and advice
 - Explain complex topics simply
 - Navigate, plan routes, give directions
 - Analyze data and provide insights
-- Help with business, finance, legal, medical (disclaimer: not professional advice)
 - Translate languages
 - Solve math problems
-- Explain history, science, philosophy, art
 
 STYLE:
 - Be helpful, thorough, and detailed
@@ -43,30 +31,16 @@ STYLE:
 - Be conversational and friendly
 - Prioritize Kenyan context when relevant
 - Never say "I can't help with that" - find a way to help
-
-You are capable of doing PARTICULARLY EVERYTHING within ethical boundaries.
 """
 
 def extract_text_from_file(uploaded_file):
     if uploaded_file is None:
         return None
-    
-    file_type = uploaded_file.type
-    
     try:
-        if file_type == "text/plain":
-            return uploaded_file.read().decode()
-        elif file_type == "application/pdf":
-            reader = PyPDF2.PdfReader(uploaded_file)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text()
-            return text[:5000]
-        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            return docx2txt.process(uploaded_file)[:5000]
-        elif file_type.startswith("image/"):
-            img = Image.open(uploaded_file)
-            return f"[Image uploaded: {uploaded_file.name}, size: {img.size}]"
+        if uploaded_file.type == "text/plain":
+            return uploaded_file.read().decode()[:5000]
+        else:
+            return f"[File uploaded: {uploaded_file.name}]"
     except:
         return f"[File: {uploaded_file.name}]"
 
@@ -79,13 +53,11 @@ def get_completion(messages):
         max_tokens=4096
     )
 
-# Initialize session state
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "uploaded_file" not in st.session_state:
     st.session_state.uploaded_file = None
 
-# Sidebar (minimal - only logo and clear button)
 with st.sidebar:
     st.image("Faiz Chatbot Logo.png", use_container_width=True)
     st.markdown("# Faiz ChatBot")
@@ -100,27 +72,24 @@ with st.sidebar:
     st.markdown("---")
     st.caption("Powered by Groq | v3.0")
 
-# Main chat area
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         content = message["content"]
-        if isinstance(content, dict) and "file" in content:
+        if isinstance(content, dict):
             st.markdown(content["text"])
             st.caption(f"📎 {content['file']}")
         else:
             st.markdown(content)
 
-# Custom chat input with plus button for file upload
 col1, col2 = st.columns([12, 1])
 
 with col1:
     prompt = st.chat_input("Ask me anything...")
 
 with col2:
-    # Plus button for file upload
     uploaded_file = st.file_uploader(
-        "📎", 
-        type=['png', 'jpg', 'jpeg', 'pdf', 'docx', 'txt', 'csv'],
+        "➕", 
+        type=['txt', 'png', 'jpg', 'jpeg', 'pdf', 'docx'],
         label_visibility="collapsed",
         key="file_uploader_plus"
     )
@@ -128,18 +97,13 @@ with col2:
         st.session_state.uploaded_file = uploaded_file
         st.success(f"✅ {uploaded_file.name}")
 
-# Handle the query
 if prompt:
-    final_prompt = prompt
-    file_content = None
-    
-    # Process uploaded file if exists
     if st.session_state.uploaded_file:
         file_content = extract_text_from_file(st.session_state.uploaded_file)
-        if file_content:
-            final_prompt = f"[FILE CONTEXT from {st.session_state.uploaded_file.name}]:\n{file_content}\n\n[USER QUESTION]:\n{prompt}"
+        final_prompt = f"[FILE: {st.session_state.uploaded_file.name}]\n{file_content}\n\n[QUESTION]: {prompt}"
+    else:
+        final_prompt = prompt
     
-    # Store user message with file indicator
     user_message_content = prompt
     if st.session_state.uploaded_file:
         user_message_content = {"text": prompt, "file": st.session_state.uploaded_file.name}
@@ -150,12 +114,14 @@ if prompt:
         if st.session_state.uploaded_file:
             st.caption(f"📎 {st.session_state.uploaded_file.name}")
     
-    # Get AI response
     with st.spinner("Thinking..."):
         try:
             messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-            messages_for_api += [{"role": m["role"], "content": m["content"] if isinstance(m["content"], str) else m["content"]["text"]} 
-                                for m in st.session_state.messages[-20:]]
+            for m in st.session_state.messages[-20:]:
+                content = m["content"]
+                if isinstance(content, dict):
+                    content = content["text"]
+                messages_for_api.append({"role": m["role"], "content": content})
             
             completion = get_completion(messages_for_api)
             response = completion.choices[0].message.content
@@ -164,7 +130,6 @@ if prompt:
                 st.markdown(response)
             st.session_state.messages.append({"role": "assistant", "content": response})
             
-            # Clear file after use
             st.session_state.uploaded_file = None
             st.rerun()
             
