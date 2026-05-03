@@ -1,14 +1,7 @@
 import streamlit as st
 from groq import Groq
-import PyPDF2
-import docx2txt
-from PIL import Image
-import io
-import base64
 from tenacity import retry, stop_after_attempt, wait_exponential
-import requests
-from bs4 import BeautifulSoup
-import json
+import io
 
 st.set_page_config(page_title="Faiz ChatBot", page_icon="Faiz Chatbot Logo.png", layout="wide")
 
@@ -28,14 +21,11 @@ CAPABILITIES:
 - Write, debug, and explain code in any programming language
 - Generate creative content (stories, poems, scripts)
 - Provide academic research assistance
-- Offer mental health support and advice
 - Explain complex topics simply
 - Navigate, plan routes, give directions
 - Analyze data and provide insights
-- Help with business, finance, legal, medical (disclaimer: not professional advice)
 - Translate languages
 - Solve math problems
-- Explain history, science, philosophy, art
 
 STYLE:
 - Be helpful, thorough, and detailed
@@ -51,22 +41,14 @@ def extract_text_from_file(uploaded_file):
     if uploaded_file is None:
         return None
     
-    file_type = uploaded_file.type
-    
     try:
-        if file_type == "text/plain":
-            return uploaded_file.read().decode()
-        elif file_type == "application/pdf":
-            reader = PyPDF2.PdfReader(uploaded_file)
-            text = ""
-            for page in reader.pages:
-                text += page.extract_text()
-            return text[:5000]
-        elif file_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-            return docx2txt.process(uploaded_file)[:5000]
-        elif file_type.startswith("image/"):
-            img = Image.open(uploaded_file)
-            return f"[Image uploaded: {uploaded_file.name}, size: {img.size}]"
+        # Only handle text files to avoid dependencies
+        if uploaded_file.type == "text/plain":
+            return uploaded_file.read().decode()[:5000]
+        elif uploaded_file.type.startswith("image/"):
+            return f"[Image uploaded: {uploaded_file.name}]"
+        else:
+            return f"[File uploaded: {uploaded_file.name} (type: {uploaded_file.type})]"
     except:
         return f"[File: {uploaded_file.name}]"
 
@@ -110,7 +92,7 @@ for message in st.session_state.messages:
         else:
             st.markdown(content)
 
-# Custom chat input with plus button for file upload
+# Custom layout for chat input with plus button
 col1, col2 = st.columns([12, 1])
 
 with col1:
@@ -119,8 +101,8 @@ with col1:
 with col2:
     # Plus button for file upload
     uploaded_file = st.file_uploader(
-        "📎", 
-        type=['png', 'jpg', 'jpeg', 'pdf', 'docx', 'txt', 'csv'],
+        "➕", 
+        type=['txt', 'png', 'jpg', 'jpeg', 'pdf', 'docx'],
         label_visibility="collapsed",
         key="file_uploader_plus"
     )
@@ -131,15 +113,14 @@ with col2:
 # Handle the query
 if prompt:
     final_prompt = prompt
-    file_content = None
     
     # Process uploaded file if exists
     if st.session_state.uploaded_file:
         file_content = extract_text_from_file(st.session_state.uploaded_file)
         if file_content:
-            final_prompt = f"[FILE CONTEXT from {st.session_state.uploaded_file.name}]:\n{file_content}\n\n[USER QUESTION]:\n{prompt}"
+            final_prompt = f"[FILE: {st.session_state.uploaded_file.name}]\n{file_content}\n\n[QUESTION]: {prompt}"
     
-    # Store user message with file indicator
+    # Store user message
     user_message_content = prompt
     if st.session_state.uploaded_file:
         user_message_content = {"text": prompt, "file": st.session_state.uploaded_file.name}
@@ -154,8 +135,11 @@ if prompt:
     with st.spinner("Thinking..."):
         try:
             messages_for_api = [{"role": "system", "content": CLAUDE_PROTOCOL}]
-            messages_for_api += [{"role": m["role"], "content": m["content"] if isinstance(m["content"], str) else m["content"]["text"]} 
-                                for m in st.session_state.messages[-20:]]
+            for m in st.session_state.messages[-20:]:
+                content = m["content"]
+                if isinstance(content, dict):
+                    content = content["text"]
+                messages_for_api.append({"role": m["role"], "content": content})
             
             completion = get_completion(messages_for_api)
             response = completion.choices[0].message.content
