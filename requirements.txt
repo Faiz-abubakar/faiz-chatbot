@@ -1,8 +1,2 @@
+google-generativeai
 streamlit
-groq
-tenacity
-requests
-beautifulsoup4
-PyPDF2
-docx2txt
-Pillow
