@@ -1,73 +1,84 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
 
-# 1. Page Configuration & Custom Theme
+# 1. Page Config & Professional Theme
 st.set_page_config(page_title="Faiz AI General Tool", page_icon="🛠️", layout="wide")
 
-# Custom CSS for your #CBDDE9 and #2872A1 scheme
+# Applying your specific #CBDDE9 and #2872A1 color scheme
 st.markdown(f"""
     <style>
     .stApp {{
-        background-color: #f0f4f7;
+        background-color: #FFFFFF;
     }}
-    .stSidebar {{
+    /* Sidebar styling */
+    [data-testid="stSidebar"] {{
         background-color: #CBDDE9;
     }}
-    /* Style the buttons and headers */
+    /* Button and Header styling */
     .stButton>button {{
         background-color: #2872A1;
         color: white;
         border-radius: 8px;
+        border: none;
     }}
-    h1, h2, h3 {{
+    h1, h2, h3, p {{
         color: #2872A1;
     }}
+    /* Chat message bubble styling */
+    .stChatMessage {{
+        border-radius: 15px;
+    }}
     </style>
-    """, unsafe_allow_stdio=True)
+    """, unsafe_allow_html=True)
 
-# 2. Securely Initialize Gemini 3 Flash
+# 2. Securely Initialize Gemini Client
 if "GEMINI_API_KEY" in st.secrets:
-    genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
 else:
-    st.sidebar.error("⚠️ API Key not found in secrets.toml")
+    st.sidebar.error("⚠️ API Key not found in Streamlit Secrets.")
     st.stop()
 
-# 3. App Sidebar
+# 3. Sidebar Information
 with st.sidebar:
-    st.image("https://via.placeholder.com/150/2872A1/FFFFFF?text=Faiz+Design", width=100)
-    st.title("Settings")
-    # Using the Gemini 3 Flash model (2026 stable)
-    model_choice = st.selectbox("Model Version", ["gemini-3-flash-preview", "gemini-2.5-flash"])
-    st.info("This tool is optimized for ICT tasks, Graphics Design brainstorming, and general research.")
+    st.title("Faiz Design Tool")
+    st.markdown("---")
+    st.write("**Location:** Nairobi / Nakuru")
+    st.write("**Focus:** ICT, STEM, & Graphics")
+    if st.button("Clear Chat"):
+        st.session_state.messages = []
+        st.rerun()
 
-# 4. Main Interface
+# 4. Main Chat Interface
 st.title("🚀 Faiz AI General Tool")
-st.markdown("---")
+st.caption("Powered by Gemini 3 Flash")
 
 # Initialize Chat History
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# Display Messages
+# Display Messages from history
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
-# 5. The Logic
-if prompt := st.chat_input("Ask anything..."):
-    # Show user input
+# 5. Chat Logic
+if prompt := st.chat_input("How can I assist with your ICT or Design project?"):
+    # Display user message
     st.chat_message("user").markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # Generate Response
-    model = genai.GenerativeModel(model_choice)
+    # Generate Streamed Response
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         full_response = ""
         
         try:
-            # Simple direct response for a general tool
-            response = model.generate_content(prompt, stream=True)
+            # Using Gemini 3 Flash for maximum speed
+            response = client.models.generate_content_stream(
+                model="gemini-3-flash",
+                contents=prompt
+            )
+            
             for chunk in response:
                 full_response += chunk.text
                 message_placeholder.markdown(full_response + "▌")
@@ -76,4 +87,4 @@ if prompt := st.chat_input("Ask anything..."):
             st.session_state.messages.append({"role": "assistant", "content": full_response})
             
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Developer Error: {e}")
